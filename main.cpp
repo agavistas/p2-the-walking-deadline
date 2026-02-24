@@ -71,6 +71,10 @@ class Battle {
 		}
 	}
 
+	~Battle() {
+		for (Zombie *zomb : zombies) delete(zomb);
+	}
+
 	private:
 	Zombie* moveZombies() {
 		Zombie* ptr = nullptr;
