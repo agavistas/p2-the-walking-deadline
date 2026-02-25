@@ -1,3 +1,4 @@
+// Project Identifier: 9504853406CBAC39EE89AA3AD238AA12CA262043
 #include <cstdint>
 #include <string>
 #include <deque>
@@ -62,14 +63,16 @@ class Battle {
 			}
 			if (round == nextWave) addNewZombies();
 			endingZombie = attackZombies();
+			if (median && anyDestroyed) std::cout << "At the end of round " << round << ", the median zombie lifetime is " 
+				<< (life_over_median.size() == life_under_median.size() ? 
+				(life_over_median.top()->lifetime+life_under_median.top()->lifetime)/2 : 
+				(life_over_median.size() > life_under_median.size() ? 
+				life_over_median.top()->lifetime : life_under_median.top()->lifetime)) << "\n";
 			if (!moreRounds && endingZombie != nullptr) {
 				std::cout <<"VICTORY IN ROUND " << round << "! " << endingZombie->name << " was the last zombie.\n";
 				if (stats > 0) printStats();
 				return;
 			}
-			if (median) std::cout << "At the end of round " << round << ", the median zombie lifetime is " 
-				<< (life_over_median.size() > life_under_median.size() ? 
-				life_over_median.top()->lifetime : life_under_median.top()->lifetime) << "\n";
 			++round;
 		}
 	}
@@ -86,7 +89,7 @@ class Battle {
 		for (uint32_t i = 0; i < dstats; ++i) std::cout << (*(iter++))->name << " " << i+1 << "\n";
 		std::cout << "Last zombies killed:\n";
 		iter = --deadies.end();
-		for (uint32_t i = 0; i < dstats; ++i) std::cout << (*(iter--))->name << " " << deadies.size()-i << "\n";
+		for (uint32_t i = 0; i < dstats; ++i) std::cout << (*(iter--))->name << " " << dstats-i << "\n";
 		uint32_t zstats = std::min(static_cast<uint32_t>(zombies.size()), stats);
 		for (Zombie *zomb : zombies) { 
 			life_queue_max.push(zomb);
@@ -120,8 +123,7 @@ class Battle {
 	}
 
 	Zombie* attackZombies() {
-		bool anyDestroyed = false;
-		for (; quiver > 0; --quiver) {
+		for (; quiver > 0 && !eta_queue.empty(); --quiver) {
 			Zombie* top = eta_queue.top();
 			--(top->health);
 			if (!top->health) {
@@ -140,18 +142,21 @@ class Battle {
 				"Destroyed: " << top->name << " (distance: " << top->distance
 				<< ", speed: " << top->speed << ", health: " << top->health << ")\n"; 
 			}
-			if (eta_queue.empty()) return top;
+			if (eta_queue.empty()) {
+				if (median && anyDestroyed) rebalanceMedian(); 
+				return top;
+			}
 		}
-		if (anyDestroyed) rebalanceMedian(); 
+		if (median && anyDestroyed) rebalanceMedian(); 
 		return nullptr;
 	}
 
 	void rebalanceMedian() {
-		while (!life_under_median.empty() && life_under_median.size() - life_over_median.size() > 1) {
+		while (life_under_median.size() > life_over_median.size() + 1) {
 			life_over_median.push(life_under_median.top());
 			life_under_median.pop();
 		}
-		while (!life_over_median.empty() && life_over_median.size() - life_under_median.size() > 1) {
+		while (life_over_median.size() > life_under_median.size() + 1) {
 			life_under_median.push(life_over_median.top());
 			life_over_median.pop();
 		}	
@@ -228,6 +233,7 @@ class Battle {
 	std::priority_queue<Zombie*, std::vector<Zombie*>, lifetimeGreater> life_queue_min;
 	std::priority_queue<Zombie*, std::vector<Zombie*>, lifetimeLess> life_under_median;
 	std::priority_queue<Zombie*, std::vector<Zombie*>, lifetimeGreater> life_over_median;
+	bool anyDestroyed = false;
 
 	// init related variables
 	uint32_t quiver_capacity;
