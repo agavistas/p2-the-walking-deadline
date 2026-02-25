@@ -12,6 +12,7 @@ typedef struct Zombie {
 	uint32_t speed;
 	uint32_t health;
 	uint32_t lifetime;
+	bool alive;
 } Zombie;
 
 class Battle {
@@ -78,7 +79,7 @@ class Battle {
 	private:
 	Zombie* moveZombies() {
 		Zombie* ptr = nullptr;
-		for (Zombie* zomb : zombies) {
+		for (Zombie* zomb : zombies) if (zomb->alive) {
 			zomb->distance -= std::min(zomb->distance, zomb->speed);
 			if (zomb->distance == 0 && !ptr) ptr = zomb;
 			if (verbose) std::cout << 
@@ -94,6 +95,7 @@ class Battle {
 			--(top->health);
 			if (top->health == 0) {
 				eta_queue.pop();
+				top->alive = false;
 				if (verbose) std::cout << 
 				"Destroyed: " << top->name << " (distance: " << top->distance
 				<< ", speed: " << top->speed << ", health: " << top->health << ")\n"; 
@@ -114,6 +116,7 @@ class Battle {
 			zombieptr->speed = P2random::getNextZombieSpeed();
 			zombieptr->health = P2random::getNextZombieHealth();
 			zombieptr->lifetime = 0;
+			zombieptr->alive = true;
 			zombies.push_back(zombieptr);
 			eta_queue.push(zombieptr);
 
@@ -127,6 +130,7 @@ class Battle {
 			std::cin >> zombieptr->name >> buffer >> zombieptr->distance >> 
 			buffer >> zombieptr->speed >> buffer >> zombieptr->health;
 			zombieptr->lifetime = 0;
+			zombieptr->alive = true;
 			zombies.push_back(zombieptr);
 			eta_queue.push(zombieptr);
 
