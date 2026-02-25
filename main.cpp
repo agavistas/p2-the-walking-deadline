@@ -1,6 +1,6 @@
 #include <cstdint>
 #include <string>
-#include <vector>
+#include <deque>
 #include <queue>
 #include <iostream>
 #include <getopt.h>
@@ -12,7 +12,6 @@ typedef struct Zombie {
 	uint32_t speed;
 	uint32_t health;
 	uint32_t lifetime;
-	bool alive;
 } Zombie;
 
 class Battle {
@@ -58,14 +57,14 @@ class Battle {
 			Zombie* endingZombie = moveZombies();
 			if (endingZombie != nullptr) {
 				std::cout << "DEFEAT IN ROUND " << round << "! " << endingZombie->name << " ate your brains!\n";
-				if (stats > 0) std::cout << "Zombies still active: " << eta_queue.size() << "\n";
+				if (stats > 0) printStats();
 				return;
 			}
 			if (round == nextWave) addNewZombies();
 			endingZombie = attackZombies();
 			if (!moreRounds && endingZombie != nullptr) {
 				std::cout <<"VICTORY IN ROUND " << round << "! " << endingZombie->name << " was the last zombie.\n";
-				if (stats > 0) std::cout << "Zombies still active: " << eta_queue.size() << "\n";
+				if (stats > 0) printStats();
 				return;
 			}
 			++round;
@@ -77,9 +76,19 @@ class Battle {
 	}
 
 	private:
+	void printStats() {
+		std::cout << "Zombies still active: " << eta_queue.size() << "\nFirst zombies killed:\n";		
+		auto iter = deadies.begin();
+		for (uint32_t i = 0; i < stats; ++i) std::cout << (*(iter++))->name << " " << i+1 << "\n";
+		std::cout << "Last zombies killed:\n";
+		iter = --deadies.end();
+		for (uint32_t i = 0; i < stats; ++i) std::cout << (*(iter--))->name << " " << deadies.size()-i << "\n";
+	}
+
 	Zombie* moveZombies() {
 		Zombie* ptr = nullptr;
-		for (Zombie* zomb : zombies) if (zomb->alive) {
+		for (Zombie* zomb : zombies) if (zomb->health) {
+			++(zomb->lifetime);
 			zomb->distance -= std::min(zomb->distance, zomb->speed);
 			if (zomb->distance == 0 && !ptr) ptr = zomb;
 			if (verbose) std::cout << 
@@ -93,9 +102,9 @@ class Battle {
 		for (; quiver > 0; --quiver) {
 			Zombie* top = eta_queue.top();
 			--(top->health);
-			if (top->health == 0) {
+			if (!top->health) {
 				eta_queue.pop();
-				top->alive = false;
+				deadies.push_back(top);
 				if (verbose) std::cout << 
 				"Destroyed: " << top->name << " (distance: " << top->distance
 				<< ", speed: " << top->speed << ", health: " << top->health << ")\n"; 
@@ -116,7 +125,6 @@ class Battle {
 			zombieptr->speed = P2random::getNextZombieSpeed();
 			zombieptr->health = P2random::getNextZombieHealth();
 			zombieptr->lifetime = 0;
-			zombieptr->alive = true;
 			zombies.push_back(zombieptr);
 			eta_queue.push(zombieptr);
 
@@ -130,7 +138,6 @@ class Battle {
 			std::cin >> zombieptr->name >> buffer >> zombieptr->distance >> 
 			buffer >> zombieptr->speed >> buffer >> zombieptr->health;
 			zombieptr->lifetime = 0;
-			zombieptr->alive = true;
 			zombies.push_back(zombieptr);
 			eta_queue.push(zombieptr);
 
@@ -152,7 +159,8 @@ class Battle {
 	};
 
 	// game related variables
-	std::vector<Zombie*> zombies;
+	std::deque<Zombie*> zombies;
+	std::deque<Zombie*> deadies;
 	std::priority_queue<Zombie*, std::vector<Zombie*>, etaGreater> eta_queue;
 	bool moreRounds = true;
 	uint32_t nextWave;
